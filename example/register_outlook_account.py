@@ -563,7 +563,10 @@ async def register_outlook_account():
     
     finally:
         log("\n🔌 关闭浏览器...")
-        await driver.stop()
+        try:
+            driver.stop()
+        except:
+            pass
         logger.close()
 
 
