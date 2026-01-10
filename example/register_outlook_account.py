@@ -150,7 +150,24 @@ async def register_outlook_account():
             headless=False,  # 改为 False 以便查看过程
             no_sandbox=True,
             browser_executable_path=browser_path if browser_path else None,
-            browser_args=['--disable-dev-shm-usage', '--disable-gpu', '--no-first-run']
+            browser_args=[
+                '--disable-dev-shm-usage',
+                '--disable-gpu',
+                '--no-first-run',
+                '--disable-software-rasterizer',
+                '--disable-extensions',
+                '--disable-component-extensions-with-background-pages',
+                '--disable-breakpad',
+                '--disable-default-apps',
+                '--disable-extensions-file-access-check',
+                '--disable-extensions-http-throttling',
+                '--disable-sync',
+                '--disable-translate',
+                '--metrics-recording-only',
+                '--mute-audio',
+                '--single-process',
+                '--disable-web-resources',
+            ]
         )
         log(f"  ✓ 浏览器启动成功")
     except Exception as e:
@@ -160,7 +177,11 @@ async def register_outlook_account():
             driver = await uc.start(
                 headless=False,
                 no_sandbox=True,
-                browser_args=['--disable-dev-shm-usage', '--disable-gpu']
+                browser_args=[
+                    '--disable-dev-shm-usage',
+                    '--disable-gpu',
+                    '--single-process',
+                ]
             )
             log(f"  ✓ 使用默认浏览器启动成功")
         except Exception as e2:
