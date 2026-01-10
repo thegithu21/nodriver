@@ -579,6 +579,103 @@ async def register_outlook_account():
         
         log(f"\n📁 账户信息已保存: {account_file}")
         
+        # 保存到 CSV
+        if save_to_csv(email, password, name, birth_date):
+            log(f"   ✓ 账户信息已保存到 CSV: {CSV_FILE}")
+        
+        # 登录邮箱
+        log("\n🔐 现在尝试登录邮箱...")
+        try:
+            await tab.sleep(2)
+            
+            # 访问 Outlook Web App
+            log("📧 访问 Outlook Web App...")
+            login_url = "https://outlook.com"
+            tab = await driver.get(login_url)
+            await tab.sleep(8)
+            
+            log(f"   当前 URL: {tab.url[:80]}...")
+            
+            # 查找邮箱字段
+            log("📝 输入邮箱...")
+            login_email_input = None
+            email_selectors = [
+                "input[type='email']",
+                "input[name='loginfmt']",
+                "input[placeholder*='email']",
+                "#i0116"
+            ]
+            
+            for selector in email_selectors:
+                try:
+                    login_email_input = await tab.select(selector, timeout=3)
+                    if login_email_input:
+                        log(f"   ✓ 找到邮箱输入框")
+                        break
+                except:
+                    pass
+            
+            if login_email_input:
+                await login_email_input.send_keys(email)
+                await tab.sleep(1)
+                
+                # 查找并点击下一步按钮
+                try:
+                    next_btn = await tab.select("button[type='submit']", timeout=3)
+                    if next_btn:
+                        await next_btn.click()
+                        await tab.sleep(6)
+                        log(f"   ✓ 邮箱输入完成")
+                except:
+                    pass
+                
+                # 输入密码
+                log("🔑 输入密码...")
+                pwd_selectors = [
+                    "input[type='password']",
+                    "input[name='passwd']",
+                    "#i0118"
+                ]
+                
+                for selector in pwd_selectors:
+                    try:
+                        pwd_input = await tab.select(selector, timeout=3)
+                        if pwd_input:
+                            log(f"   ✓ 找到密码输入框")
+                            await pwd_input.send_keys(password)
+                            await tab.sleep(1)
+                            
+                            # 点击登录
+                            try:
+                                submit_btn = await tab.select("button[type='submit']", timeout=3)
+                                if submit_btn:
+                                    await submit_btn.click()
+                                    await tab.sleep(8)
+                                    log(f"   ✓ 密码输入完成，等待登录...")
+                            except:
+                                pass
+                            break
+                    except:
+                        pass
+                
+                # 等待邮箱加载
+                log("⏳ 等待邮箱界面加载... (15秒)")
+                await tab.sleep(15)
+                
+                # 保存邮箱截图
+                inbox_screenshot = os.path.join(INBOX_SCREENSHOTS_DIR, 
+                                               f"inbox_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png")
+                try:
+                    await tab.save_screenshot(inbox_screenshot)
+                    log(f"📸 邮箱界面截图已保存: {inbox_screenshot}")
+                except Exception as e:
+                    log(f"   ⚠️  邮箱截图保存失败: {e}")
+            else:
+                log(f"   ⚠️  未找到登录表单")
+        
+        except Exception as e:
+            log(f"   ⚠️  邮箱登录失败: {e}")
+        
         return account_info
         
     except Exception as e:
