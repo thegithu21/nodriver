@@ -11,6 +11,7 @@ import time
 import random
 import string
 import json
+import subprocess
 from datetime import datetime
 from pathlib import Path
 
@@ -128,7 +129,6 @@ async def register_outlook_account():
     
     browser_path = None
     for path in browser_paths:
-        import subprocess
         try:
             result = subprocess.run(['which', path], capture_output=True)
             if result.returncode == 0:
@@ -140,7 +140,6 @@ async def register_outlook_account():
     
     if not browser_path:
         for path in browser_paths:
-            import os
             if os.path.exists(path):
                 browser_path = path
                 log(f"  ✓ 找到浏览器: {path}")
@@ -320,7 +319,7 @@ async def register_outlook_account():
                 await save_screenshot(tab, "email_entered")
             else:
                 log("  ⚠️  未找到下一步按钮，尝试按 Enter...")
-                await email_input.send_keys(['Return'])
+                await email_input.send_keys('\n')
                 await tab.sleep(3)
                 await save_screenshot(tab, "email_entered")
             
@@ -400,7 +399,7 @@ async def register_outlook_account():
                 await save_screenshot(tab, "password_entered")
             else:
                 log("  ⚠️  未找到下一步按钮，尝试按 Enter...")
-                await password_input.send_keys(['Return'])
+                await password_input.send_keys('\n')
                 await tab.sleep(3)
                 await save_screenshot(tab, "password_entered")
             
@@ -455,8 +454,6 @@ async def register_outlook_account():
             
             log(f"  输入名字: {name}")
             # 清除任何已有文本
-            await name_input.send_keys(["Control", "a"])
-            await tab.sleep(0.2)
             await name_input.send_keys(name)
             await tab.sleep(1)
             
@@ -486,7 +483,7 @@ async def register_outlook_account():
                 await save_screenshot(tab, "name_entered")
             else:
                 log("  ⚠️  未找到下一步按钮，尝试按 Enter...")
-                await name_input.send_keys(['Return'])
+                await name_input.send_keys('\n')
                 await tab.sleep(3)
                 await save_screenshot(tab, "name_entered")
             
@@ -560,7 +557,7 @@ async def register_outlook_account():
                     await save_screenshot(tab, "birth_entered")
                 else:
                     log("  ⚠️  未找到下一步按钮，尝试按 Enter...")
-                    await birth_input.send_keys(['Return'])
+                    await birth_input.send_keys('\n')
                     await tab.sleep(3)
                     await save_screenshot(tab, "birth_entered")
             else:
