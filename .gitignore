@@ -71,3 +71,11 @@ ENV/
 env.bak/
 venv.bak/
 /docs/_build/doctrees/
+# CSV 账户文件和邮箱调试目录 (敏感信息)
+/debug_output/csv_accounts/
+/debug_output/accounts/
+/debug_output/inbox_screenshots/
+/tmp/outlook_registration/csv_accounts/
+/tmp/outlook_registration/accounts/
+/tmp/outlook_registration/inbox_screenshots/
+*.csv
