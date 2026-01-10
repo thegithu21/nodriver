@@ -178,81 +178,26 @@ async def register_outlook_account():
         log(f"  生日: {birth_date}\n")
         
         # 访问 Outlook 注册页面
-        log("🌐 访问 Outlook.com...")
+        log("🌐 访问 Outlook 注册页面...")
         try:
-            tab = await driver.get("https://outlook.com/")
+            # 直接访问注册页面
+            signup_url = "https://go.microsoft.com/fwlink/p/?linkid=2125440&clcid=0x409&culture=en-us&country=us"
+            tab = await driver.get(signup_url)
             log("  ⏳ 等待页面加载...")
-            await tab.sleep(5)
+            await tab.sleep(8)
             
             # 获取当前 URL 以验证页面加载
             current_url = tab.url
             log(f"  ✓ 当前URL: {current_url}")
             
-            await save_screenshot(tab, "homepage")
+            await save_screenshot(tab, "signup_page_direct")
         except Exception as e:
-            log(f"  ❌ 访问 Outlook 失败: {e}")
+            log(f"  ❌ 访问注册页面失败: {e}")
             raise
-        
-        # 查找"创建免费账户"按钮
-        log("🔍 查找注册按钮...")
-        try:
-            # 尝试多个可能的按钮文本
-            signup_btn = None
-            for text in ["Create free account", "Sign up", "Create account", "新建账户"]:
-                try:
-                    signup_btn = await tab.find(text, best_match=True)
-                    if signup_btn:
-                        log(f"  ✓ 找到按钮: '{text}'")
-                        break
-                except:
-                    pass
-            
-            if signup_btn:
-                log("  点击注册按钮...")
-                await signup_btn.click()
-                await tab.sleep(4)
-                await save_screenshot(tab, "signup_page")
-            else:
-                log("  ⚠️  未找到标准按钮，尝试查找邮箱输入框...")
-        except Exception as e:
-            log(f"  ⚠️  按钮查找失败: {e}")
         
         # 第一步: 输入电子邮件
         log("\n📧 第一步: 输入电子邮件地址")
         try:
-            # 首先查找"创建帐户"链接
-            log("  🔍 查找注册入口...")
-            await tab.sleep(2)
-            
-            # 尝试查找创建账户的链接或按钮
-            signup_selectors = [
-                "a[href*='signup']",
-                "button:has-text('Create account')",
-                "button:has-text('Create free account')",
-                "a[role='button']:has-text('Create')",
-                "div[role='button']:has-text('Create')",
-            ]
-            
-            signup_element = None
-            for selector in signup_selectors:
-                try:
-                    elements = await tab.select_all(selector)
-                    if elements:
-                        signup_element = elements[0]
-                        log(f"  ✓ 找到注册链接: {selector}")
-                        break
-                except:
-                    pass
-            
-            if signup_element:
-                log("  点击注册链接...")
-                await signup_element.click()
-                await tab.sleep(4)
-                await save_screenshot(tab, "signup_page")
-            else:
-                log("  ⚠️  未找到注册链接，尝试直接查找邮箱输入框...")
-                await tab.sleep(1)
-            
             # 查找邮箱输入框
             log("  🔍 查找邮箱输入框...")
             email_input = None
