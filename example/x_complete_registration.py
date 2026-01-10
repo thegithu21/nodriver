@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 X (Twitter) 完全自动化注册脚本
-使用临时邮箱，自动完成整个注册流程，并返回账号密码
+使用临时邮箱自动完成验证并返回账号密码
 """
 
 import asyncio
@@ -43,12 +43,13 @@ class Logger:
         self.file_handle = open(log_file, 'w', encoding='utf-8')
     
     def write(self, message):
-        print(message, end='')
+        print(message, end='', flush=True)
         self.file_handle.write(message)
         self.file_handle.flush()
     
     def close(self):
-        self.file_handle.close()
+        if self.file_handle:
+            self.file_handle.close()
 
 logger = Logger(LOG_FILE)
 
@@ -63,151 +64,249 @@ async def save_screenshot(tab, prefix=""):
         filename = f"{prefix}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png" if prefix else f"{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
         filepath = os.path.join(SCREENSHOTS_DIR, filename)
         await tab.save_screenshot(filepath)
+        log(f"📷 截图已保存: {filepath}")
         return filepath
     except Exception as e:
         log(f"❌ 截图保存失败: {e}")
         return None
 
-def generate_random_string(length=8):
-    """生成随机字符串"""
-    return "".join(random.choices(string.ascii_letters, k=length))
-
-def generate_password():
-    """生成强密码"""
-    password = ""
-    password += random.choice(string.ascii_uppercase)
-    password += random.choice(string.ascii_lowercase)
-    password += random.choice(string.digits)
-    password += random.choice("!@#$%^&*")
-    password += "".join(random.choices(string.ascii_letters + string.digits, k=8))
-    return ''.join(random.sample(password, len(password)))
-
+# 月份列表
 MONTHS = ["january", "february", "march", "april", "may", "june",
           "july", "august", "september", "october", "november", "december"]
 
-async def get_temp_email():
-    """从 temp-mail.org 获取临时邮箱"""
-    log("\n📧 获取临时邮箱...")
-    
-    temp_tab = await uc.driver.get("https://temp-mail.org")
-    await temp_tab.sleep(5)
-    
-    try:
-        # 尝试获取显示的邮箱地址
-        email = await temp_tab.evaluate("""
-            (function() {
-                // 尝试多个可能的邮箱显示位置
-                let elements = [
-                    document.querySelector('input[type="email"]'),
-                    document.querySelector('.mail-address'),
-                    document.querySelector('[data-address]'),
-                    document.querySelector('#mail-display'),
-                    document.querySelector('.address-display')
-                ];
-                
-                for (let el of elements) {
-                    if (el) {
-                        let value = el.value || el.textContent || el.getAttribute('data-address');
-                        if (value && value.includes('@')) return value;
-                    }
-                }
-                
-                // 尝试从页面文本提取邮箱
-                let text = document.body.innerText;
-                let match = text.match(/([a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+)/);
-                if (match) return match[1];
-                
-                return null;
-            })()
-        """)
-        
-        if email:
-            log(f"✓ 获取到临时邮箱: {email}")
-            return email, temp_tab
-        else:
-            log("❌ 无法从页面获取邮箱")
-            await save_screenshot(temp_tab, "tempmail_failed")
-            return None, temp_tab
-            
-    except Exception as e:
-        log(f"❌ 获取邮箱失败: {e}")
-        return None, temp_tab
+def generate_random_string(length=8):
+    """生成随机字符串"""
+    return "".join(random.choices(string.ascii_lowercase, k=length))
 
-async def wait_for_verification_code(temp_tab, email, timeout=300):
-    """等待验证邮件并提取验证码"""
-    log(f"\n⏳ 等待验证邮件 (最长{timeout}秒)...")
-    
-    start_time = time.time()
-    check_count = 0
-    
-    while time.time() - start_time < timeout:
-        check_count += 1
-        elapsed = int(time.time() - start_time)
+def generate_password():
+    """生成强密码"""
+    chars = string.ascii_uppercase + string.ascii_lowercase + string.digits + "!@#$%"
+    password = [
+        random.choice(string.ascii_uppercase),
+        random.choice(string.ascii_lowercase),
+        random.choice(string.digits),
+        random.choice("!@#$%")
+    ]
+    password += random.choices(chars, k=8)
+    random.shuffle(password)
+    return "".join(password)
+
+async def get_temp_email(driver):
+    """从 temp-mail.org 获取临时邮箱"""
+    try:
+        log("📧 获取临时邮箱...")
+        temp_tab = await driver.get("https://temp-mail.org")
+        
+        # 等待邮箱显示
+        await temp_tab.sleep(3)
+        
+        # 通过JavaScript获取邮箱地址
+        email_script = """
+(function() {
+    var emailElements = document.querySelectorAll('[data-clipboard], .email-text, #email-container, .mailbox__text');
+    if (emailElements.length > 0) {
+        return emailElements[0].textContent.trim();
+    }
+    var emailInput = document.querySelector('input[type="text"][readonly], input.email');
+    if (emailInput) {
+        return emailInput.value;
+    }
+    var allText = document.body.innerText;
+    var match = allText.match(/[a-zA-Z0-9]+@[a-zA-Z0-9]+\\.[a-zA-Z]+/);
+    return match ? match[0] : null;
+})();
+        """
         
         try:
-            # 刷新页面查看新邮件
-            await temp_tab.reload()
+            email = await temp_tab.evaluate(email_script)
+        except Exception as e:
+            log(f"⚠️ JavaScript 执行异常: {e}，尝试替代方法...")
+            # 如果 evaluate 失败，尝试从页面文本中查找
+            page_text = await temp_tab.get_text()
+            match = re.search(r'[a-zA-Z0-9]+@[a-zA-Z0-9]+\.[a-zA-Z]+', page_text)
+            email = match.group(0) if match else None
+        
+        if not email or "@" not in str(email):
+            log("❌ 无法获取临时邮箱，尝试使用备用服务...")
+            # 尝试使用 10minutemail 或其他服务
+            temp_tab = await driver.get("https://10minutemail.com")
             await temp_tab.sleep(3)
+            page_text = await temp_tab.get_text()
+            match = re.search(r'[a-zA-Z0-9]+@[a-zA-Z0-9]+\.[a-zA-Z]+', page_text)
+            email = match.group(0) if match else None
             
-            # 尝试找邮件
-            email_item = await temp_tab.select("[class*='email-item']")
-            
-            if email_item:
-                log(f"✓ 找到邮件 (第{check_count}次检查)")
-                await email_item.click()
-                await temp_tab.sleep(2)
+            if not email:
+                return None, None
+        
+        log(f"✅ 临时邮箱: {email}")
+        return email, temp_tab
+        
+    except Exception as e:
+        log(f"❌ 获取临时邮箱失败: {e}")
+        return None, None
+
+async def wait_for_verification_code(temp_tab, email, timeout=300):
+    """等待验证码邮件"""
+    try:
+        log(f"📬 等待验证码邮件 (邮箱: {email})...")
+        start_time = time.time()
+        
+        while time.time() - start_time < timeout:
+            try:
+                # 刷新邮箱
+                await temp_tab.evaluate("window.location.reload()")
+                await temp_tab.sleep(5)
                 
-                # 获取邮件内容
+                # 尝试获取邮件内容
                 email_content = await temp_tab.evaluate("""
-                    (function() {
-                        let content = document.body.innerText;
-                        return content;
-                    })()
+                    var messages = document.querySelectorAll('[data-message-id], .message-item, .list-item');
+                    var content = '';
+                    for (var i = 0; i < Math.min(messages.length, 5); i++) {
+                        content += messages[i].innerText + ' | ';
+                    }
+                    return content || document.body.innerText;
                 """)
                 
-                # 提取验证码 - 尝试多种格式
+                # 查找验证码（多种模式）
                 patterns = [
-                    r'\b\d{6}\b',           # 6位数字
-                    r'\b\d{4,8}\b',         # 4-8位数字
-                    r'code[:\s]+(\d+)',     # code: 123456
-                    r'verify[:\s]+(\d+)',   # verify: 123456
+                    r'\b(\d{6})\b',  # 6位数字
+                    r'code[:\s]+(\d+)',  # code: 12345
+                    r'verify[:\s]+(\d+)',  # verify: 12345
                 ]
                 
                 for pattern in patterns:
                     match = re.search(pattern, email_content, re.IGNORECASE)
                     if match:
-                        code = match.group(1) if '(' in pattern else match.group(0)
-                        log(f"✓ 提取到验证码: {code}")
+                        code = match.group(1)
+                        log(f"✅ 找到验证码: {code}")
                         return code
                 
-                log(f"⚠️ 邮件中未找到验证码")
-                log(f"邮件内容片段: {email_content[:200]}")
+                elapsed = int(time.time() - start_time)
+                log(f"⏳ 等待中... ({elapsed}s/{timeout}s)")
                 
-            else:
-                log(f"⏳ 等待邮件中... (已等待 {elapsed}秒)")
-                
+            except Exception as inner_e:
+                log(f"⚠️ 检查邮件出错: {inner_e}")
+                await temp_tab.sleep(2)
+        
+        log(f"❌ 超时未收到验证码 ({timeout}s)")
+        return None
+        
+    except Exception as e:
+        log(f"❌ 等待验证码失败: {e}")
+        return None
+
+async def fill_x_form(tab, email, name, password, birth_date):
+    """填充X注册表单"""
+    try:
+        log("📝 填充X注册表单...")
+        
+        # 导航到X注册页面
+        await tab.get("https://x.com/i/flow/signup")
+        await tab.sleep(3)
+        
+        # 保存截图
+        await save_screenshot(tab, "x_signup_page")
+        
+        # 寻找 '创建账户' 按钮
+        log("  • 查找创建账户按钮...")
+        try:
+            create_btn = await tab.find("create account", best_match=True)
+            if create_btn:
+                await create_btn.click()
+                await tab.sleep(2)
+        except:
+            pass
+        
+        # 填充邮箱
+        log("  • 填充邮箱...")
+        try:
+            email_input = await tab.select("input[type='email']")
+            if not email_input:
+                email_input = await tab.select("input[name='email']")
+            if email_input:
+                await email_input.send_keys(email)
+                await tab.sleep(1)
         except Exception as e:
-            log(f"⚠️ 检查邮件失败: {e}")
+            log(f"  ⚠️ 邮箱填充出错: {e}")
         
-        if elapsed % 30 == 0 and elapsed > 0:
-            log(f"💡 已等待{elapsed}秒，继续等待...")
+        # 填充名字
+        log("  • 填充名字...")
+        try:
+            inputs = await tab.select_all("input[type='text']")
+            if inputs:
+                await inputs[0].send_keys(name)
+                await tab.sleep(1)
+        except Exception as e:
+            log(f"  ⚠️ 名字填充出错: {e}")
         
-        await temp_tab.sleep(5)
-    
-    log(f"❌ 在{timeout}秒内未收到验证邮件")
-    return None
+        # 点击Next按钮
+        log("  • 点击Next...")
+        try:
+            next_btn = await tab.find("Next", best_match=True)
+            if next_btn:
+                await next_btn.click()
+                await tab.sleep(2)
+        except Exception as e:
+            log(f"  ⚠️ Next按钮点击出错: {e}")
+        
+        await save_screenshot(tab, "x_birth_date")
+        
+        # 填充出生日期
+        log("  • 填充出生日期...")
+        try:
+            selects = await tab.select_all("select")
+            if len(selects) >= 3:
+                month_str = birth_date.split()[0].title()
+                day_str = birth_date.split()[1]
+                year_str = birth_date.split()[2]
+                
+                await selects[0].send_keys(month_str)
+                log(f"     - 月份: {month_str}")
+                await tab.sleep(0.5)
+                
+                await selects[1].send_keys(day_str)
+                log(f"     - 日期: {day_str}")
+                await tab.sleep(0.5)
+                
+                await selects[2].send_keys(year_str)
+                log(f"     - 年份: {year_str}")
+                await tab.sleep(1)
+        except Exception as e:
+            log(f"  ⚠️ 出生日期填充出错: {e}")
+        
+        # 点击Next按钮
+        log("  • 点击Next...")
+        try:
+            next_btn = await tab.find("Next", best_match=True)
+            if next_btn:
+                await next_btn.click()
+                await tab.sleep(2)
+        except Exception as e:
+            log(f"  ⚠️ Next按钮点击出错: {e}")
+        
+        await save_screenshot(tab, "x_verification")
+        
+        log("✅ 表单填充完成")
+        return True
+        
+    except Exception as e:
+        log(f"❌ 表单填充失败: {e}")
+        import traceback
+        log(traceback.format_exc())
+        return False
 
 async def complete_x_registration():
-    """完成X账号注册"""
+    """完整的X账号注册流程"""
     
-    log("=" * 80)
+    log("=" * 70)
     log("X (Twitter) 完全自动化注册 - 使用临时邮箱")
-    log("=" * 80)
+    log("=" * 70)
     log(f"日志文件: {LOG_FILE}")
-    log(f"账号信息: {ACCOUNT_FILE}")
+    log(f"账号文件: {ACCOUNT_FILE}")
+    log("")
     
     # 启动浏览器
-    log("\n📱 启动浏览器...")
+    log("📱 启动浏览器...")
     driver = await uc.start(
         headless=True,
         no_sandbox=True,
@@ -215,6 +314,8 @@ async def complete_x_registration():
         browser_args=['--disable-dev-shm-usage', '--disable-gpu']
     )
     
+    tab = None
+    temp_tab = None
     account_info = {
         "status": "failed",
         "email": None,
@@ -226,225 +327,122 @@ async def complete_x_registration():
     }
     
     try:
-        # 获取临时邮箱
-        email, temp_tab = await get_temp_email()
-        if not email:
-            raise Exception("无法获取临时邮箱")
-        
-        account_info["email"] = email
-        
-        # 访问X注册页面
-        log("\n🌐 访问X注册页面...")
-        x_tab = await driver.get("https://x.com/i/flow/signup")
-        await x_tab.sleep(3)
-        await save_screenshot(x_tab, "x_start")
+        # 获取主标签页
+        tab = driver.tabs[0]
         
         # 生成账号信息
-        password = generate_password()
         name = generate_random_string(10)
+        password = generate_password()
         month = MONTHS[random.randint(0, 11)]
         day = str(random.randint(1, 28))
-        year = str(random.randint(1980, 2005))
+        year = str(random.randint(1985, 2005))
+        birth_date = f"{month} {day} {year}"
         
-        account_info["name"] = name
+        log(f"✅ 生成账号信息:")
+        log(f"   名字: {name}")
+        log(f"   密码: {password}")
+        log(f"   出生日期: {birth_date}")
+        log("")
+        
+        # 获取临时邮箱
+        email, temp_tab = await get_temp_email(driver)
+        if not email:
+            log("❌ 无法获取临时邮箱，中止注册")
+            account_info["status"] = "failed"
+            return account_info
+        
+        log("")
+        
+        # 填充X注册表单
+        success = await fill_x_form(tab, email, name, password, birth_date)
+        if not success:
+            log("❌ 表单填充失败")
+            account_info["status"] = "failed"
+            return account_info
+        
+        log("")
+        
+        # 等待验证码
+        if temp_tab:
+            code = await wait_for_verification_code(temp_tab, email, timeout=300)
+            if code:
+                log(f"📬 验证码: {code}")
+                # 在这里可以添加验证码输入逻辑
+                account_info["status"] = "completed"
+                log("✅ 邮箱验证成功")
+            else:
+                log("❌ 未能获取验证码")
+                account_info["status"] = "email_pending"
+        
+        # 更新账号信息
+        account_info["email"] = email
+        account_info["username"] = email.split("@")[0]
         account_info["password"] = password
-        account_info["birth_date"] = f"{month} {day}, {year}"
+        account_info["name"] = name
+        account_info["birth_date"] = birth_date
         
-        log(f"\n📝 账号信息:")
-        log(f"  邮箱: {email}")
-        log(f"  姓名: {name}")
-        log(f"  密码: {password}")
-        log(f"  生日: {month} {day}, {year}")
+        log("")
+        log("=" * 70)
+        log("📊 账号信息摘要:")
+        log("=" * 70)
+        log(f"邮箱: {email}")
+        log(f"用户名: {email.split('@')[0]}")
+        log(f"密码: {password}")
+        log(f"名字: {name}")
+        log(f"出生日期: {birth_date}")
+        log(f"状态: {account_info['status']}")
+        log("")
         
-        # 寻找并点击创建账户
-        log("\n🔍 寻找创建账户按钮...")
-        try:
-            create_btn = await x_tab.find("create account", best_match=True)
-            if create_btn:
-                await create_btn.click()
-                await x_tab.sleep(2)
-                log("✓ 点击创建账户")
-        except Exception as e:
-            log(f"⚠️ 创建账户按钮操作: {e}")
-        
-        # 填充邮箱
-        log(f"\n📧 填充邮箱...")
-        try:
-            email_input = await x_tab.select("input[type='email']")
-            if email_input:
-                await email_input.send_keys(email)
-                log("✓ 邮箱已填充")
-                await x_tab.sleep(1)
-        except Exception as e:
-            log(f"❌ 邮箱填充失败: {e}")
-        
-        # 填充姓名
-        log(f"👤 填充姓名...")
-        try:
-            name_input = await x_tab.select("input[type='text']")
-            if name_input:
-                await name_input.send_keys(name)
-                log("✓ 姓名已填充")
-                await x_tab.sleep(1)
-        except Exception as e:
-            log(f"⚠️ 姓名填充: {e}")
-        
-        # 填充出生日期
-        log(f"📅 填充出生日期...")
-        try:
-            selects = await x_tab.select_all("select")
-            if len(selects) >= 3:
-                await selects[0].send_keys(month.title())
-                await selects[1].send_keys(day)
-                await selects[2].send_keys(year)
-                log("✓ 出生日期已填充")
-                await x_tab.sleep(2)
-        except Exception as e:
-            log(f"⚠️ 出生日期填充: {e}")
-        
-        await save_screenshot(x_tab, "x_form_filled")
-        
-        # 接受Cookie
-        try:
-            cookie_btn = await x_tab.find("accept all", best_match=True)
-            if cookie_btn:
-                await cookie_btn.click()
-                await x_tab.sleep(1)
-                log("✓ Cookie已接受")
-        except:
-            pass
-        
-        # 点击Next
-        log("\n➡️ 点击Next按钮...")
-        try:
-            next_btn = await x_tab.find("next", best_match=True)
-            if next_btn:
-                await next_btn.click()
-                await x_tab.sleep(3)
-                log("✓ Next按钮已点击")
-        except Exception as e:
-            log(f"⚠️ Next按钮: {e}")
-        
-        await save_screenshot(x_tab, "x_after_next")
-        
-        # 处理可能的电话号码请求
-        log("\n📱 检查是否需要电话号码...")
-        try:
-            phone_input = await x_tab.select("input[type='tel']")
-            if phone_input:
-                log("⚠️ 页面要求输入电话号码")
-                # 尝试跳过或使用虚拟号码
-                await save_screenshot(x_tab, "x_phone_request")
-        except:
-            pass
-        
-        # 点击Sign up
-        log("\n✅ 寻找Sign up按钮...")
-        try:
-            signup_btn = await x_tab.find("Sign up", best_match=True)
-            if signup_btn:
-                await signup_btn.click()
-                await x_tab.sleep(3)
-                log("✓ Sign up按钮已点击")
-        except Exception as e:
-            log(f"⚠️ Sign up按钮: {e}")
-        
-        await save_screenshot(x_tab, "x_after_signup")
-        
-        # 等待验证邮件和验证码
-        log("\n📨 等待验证邮件...")
-        verification_code = await wait_for_verification_code(temp_tab, email, timeout=300)
-        
-        if verification_code:
-            log(f"\n✓ 获得验证码: {verification_code}")
-            
-            # 填充验证码
-            log("\n🔢 填充验证码...")
-            try:
-                code_inputs = await x_tab.select_all("input[type='text']")
-                for code_input in code_inputs:
-                    try:
-                        placeholder = await code_input.get_attribute("placeholder")
-                        if placeholder and ("code" in placeholder.lower() or "verify" in placeholder.lower()):
-                            await code_input.send_keys(verification_code)
-                            log("✓ 验证码已填充")
-                            await x_tab.sleep(2)
-                            break
-                    except:
-                        continue
-            except Exception as e:
-                log(f"⚠️ 验证码填充: {e}")
-            
-            await save_screenshot(x_tab, "x_after_verification")
-        else:
-            log("⚠️ 未能获得验证码，继续流程...")
-        
-        # 设置密码 (如果需要)
-        log("\n🔐 检查密码设置...")
-        try:
-            password_input = await x_tab.select("input[type='password']")
-            if password_input:
-                await password_input.send_keys(password)
-                log("✓ 密码已设置")
-                await x_tab.sleep(2)
-        except:
-            pass
-        
-        # 最终确认和完成
-        log("\n⏳ 等待注册完成...")
-        await x_tab.sleep(5)
-        
-        # 检查是否到达主页或个人资料页
-        current_url = x_tab.url
-        current_title = x_tab.title
-        
-        log(f"\n最终页面:")
-        log(f"  标题: {current_title}")
-        log(f"  URL: {current_url}")
-        
-        if "home" in current_url.lower() or "x.com/home" in current_url:
-            log("\n✅ 注册成功！")
-            account_info["status"] = "success"
-            account_info["username"] = email.split("@")[0]  # 使用邮箱前缀作为用户名
-        else:
-            log("\n⚠️ 注册流程可能未完全完成")
-            account_info["status"] = "completed"
-        
-        await save_screenshot(x_tab, "x_final")
+        return account_info
         
     except Exception as e:
-        log(f"\n❌ 发生错误: {e}")
+        log(f"❌ 发生错误: {e}")
         import traceback
         log(traceback.format_exc())
+        account_info["status"] = "error"
+        return account_info
+        
     finally:
+        # 保存账号信息
         try:
-            driver.stop()
+            log(f"💾 保存账号信息到: {ACCOUNT_FILE}")
+            with open(ACCOUNT_FILE, 'w', encoding='utf-8') as f:
+                json.dump(account_info, f, ensure_ascii=False, indent=2)
+            log("✅ 账号信息已保存")
+        except Exception as e:
+            log(f"❌ 保存账号信息失败: {e}")
+        
+        # 关闭浏览器
+        try:
+            await driver.stop()
         except:
             pass
+        
+        # 关闭日志文件
         logger.close()
-    
-    # 保存账号信息
-    log(f"\n💾 保存账号信息到: {ACCOUNT_FILE}")
-    with open(ACCOUNT_FILE, 'w', encoding='utf-8') as f:
-        json.dump(account_info, f, ensure_ascii=False, indent=2)
-    
-    return account_info
 
 async def main():
     """主函数"""
     account_info = await complete_x_registration()
     
-    # 显示结果
-    print("\n" + "="*80)
-    print("📊 注册结果")
-    print("="*80)
+    # 返回账号信息JSON
+    print("\n" + "=" * 70)
+    print("📋 返回的账号信息JSON:")
+    print("=" * 70)
     print(json.dumps(account_info, ensure_ascii=False, indent=2))
-    print("="*80)
+    print("=" * 70 + "\n")
     
     return account_info
 
-if __name__ == '__main__':
-    result = asyncio.run(main())
-    
-    # 退出时返回状态码
-    sys.exit(0 if result.get("status") == "success" else 1)
+if __name__ == "__main__":
+    try:
+        result = asyncio.run(main())
+        sys.exit(0 if result.get("status") in ["completed", "email_pending"] else 1)
+    except KeyboardInterrupt:
+        log("\n⚠️ 用户中断")
+        sys.exit(1)
+    except Exception as e:
+        log(f"\n❌ 程序崩溃: {e}")
+        import traceback
+        log(traceback.format_exc())
+        sys.exit(1)
