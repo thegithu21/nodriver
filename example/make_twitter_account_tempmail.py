@@ -320,7 +320,7 @@ async def register_twitter_with_tempmail():
         await email_input.send_keys(email)
         
         # 填充姓名
-        print(f"填充姓名: {randstr(8)}")
+        log(f"填充姓名: {randstr(8)}")
         name_input = await tab_twitter.select("input[type='text']")
         if name_input:
             await name_input.send_keys(randstr(8))
