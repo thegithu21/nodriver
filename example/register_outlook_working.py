@@ -54,18 +54,35 @@ async def register_outlook(email, password, name, birth_date):
         
         # 多次重试等待页面完全加载
         page_ready = False
-        for attempt in range(10):
-            await tab.sleep(2)
-            # 检查email输入框是否存在且可见
-            try:
-                email_input = await tab.find('input[type="email"]', single=True)
-                if email_input:
-                    page_ready = True
-                    print(f"   ✓ 找到email输入框（尝试{attempt+1}）")
-                    break
-            except:
-                if attempt == 9:
-                    print(f"   ⚠️  在{attempt+1}次尝试后未找到email输入框")
+        for attempt in range(15):
+            await tab.sleep(1)
+            # 尝试多个选择器来找email输入框
+            selectors = [
+                'input[type="email"]',
+                'input[aria-label*="email" i]',
+                'input[placeholder*="email" i]',
+                'input[name*="email" i]',
+                'input[id*="email" i]',
+            ]
+            
+            for selector in selectors:
+                try:
+                    email_input = await tab.find(selector, single=True)
+                    if email_input:
+                        page_ready = True
+                        print(f"   ✓ 找到email输入框 [{selector}]（尝试{attempt+1}）")
+                        break
+                except:
+                    pass
+            
+            if page_ready:
+                break
+            
+            if attempt == 14:
+                print(f"   ⚠️  在{attempt+1}次尝试后未找到email输入框")
+                # 获取页面中的所有输入框用于调试
+                all_inputs = await tab.find('input', single=False)
+                print(f"   页面上共有 {len(all_inputs)} 个输入框")
         
         await take_screenshot(tab, "01_page_loaded")
         
@@ -138,7 +155,12 @@ async def register_outlook(email, password, name, birth_date):
         traceback.print_exc()
     
     finally:
-        await driver.kill()
+        # 正确关闭浏览器
+        from nodriver.core import util
+        try:
+            await util.deconstruct_browser(driver)
+        except:
+            pass
 
 
 async def main():
