@@ -36,7 +36,12 @@ months = [
 
 
 async def main():
-    driver = await uc.start()
+    driver = await uc.start(
+        headless=True,
+        no_sandbox=True,
+        browser_executable_path="/usr/bin/google-chrome",
+        browser_args=['--disable-dev-shm-usage', '--disable-gpu']
+    )
 
     tab = await driver.get("https://twitter.com")
 
@@ -49,12 +54,41 @@ async def main():
     await create_account.click()
 
     print("finding the email input field")
+    await tab.sleep(2)  # 等待页面加载
+    
+    # 先检查页面内容
+    print("page title:", tab.title)
+    print("page url:", tab.url)
+    
     email = await tab.select("input[type=email]")
 
     # sometimes, email field is not shown, because phone is being asked instead
     # when this occurs, find the small text which says "use email instead"
     if not email:
+        print("email field not found, taking screenshot...")
+        screenshot = await tab.save_screenshot("/tmp/twitter_step1.png")
+        print(f"screenshot saved: {screenshot}")
+        
+        # 尝试多种方式查找"use email"链接
         use_mail_instead = await tab.find("use email instead")
+        if not use_mail_instead:
+            print("trying 'use email' instead...")
+            use_mail_instead = await tab.find("use email")
+        if not use_mail_instead:
+            print("trying 'email' instead...")
+            use_mail_instead = await tab.find("email", best_match=True)
+        
+        if not use_mail_instead:
+            print("'use email' button not found, taking another screenshot...")
+            screenshot = await tab.save_screenshot("/tmp/twitter_step2.png")
+            print(f"screenshot saved: {screenshot}")
+            print("page title:", tab.title)
+            print("page url:", tab.url)
+            # 尝试找电话字段，看看是否在电话流程
+            phone_input = await tab.select("input[type=tel]")
+            if phone_input:
+                print("Found phone input instead, attempting to find alternative...")
+            raise Exception("Cannot find 'use email instead' button")
         # and click it
         await use_mail_instead.click()
 
