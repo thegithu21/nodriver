@@ -8,6 +8,7 @@ import asyncio
 import os
 import sys
 import time
+import csv
 import random
 import string
 import json
@@ -25,9 +26,12 @@ except (ModuleNotFoundError, ImportError):
 DEBUG_DIR = "/workspaces/nodriver/debug_output"
 SCREENSHOTS_DIR = os.path.join(DEBUG_DIR, "screenshots")
 ACCOUNTS_DIR = os.path.join(DEBUG_DIR, "accounts")
+INBOX_SCREENSHOTS_DIR = os.path.join(DEBUG_DIR, "inbox_screenshots")
+CSV_DIR = os.path.join(DEBUG_DIR, "csv_accounts")
+CSV_FILE = os.path.join(CSV_DIR, "accounts.csv")
 
 # 创建目录
-for dir_path in [DEBUG_DIR, SCREENSHOTS_DIR, ACCOUNTS_DIR]:
+for dir_path in [DEBUG_DIR, SCREENSHOTS_DIR, ACCOUNTS_DIR, INBOX_SCREENSHOTS_DIR, CSV_DIR]:
     os.makedirs(dir_path, exist_ok=True)
 
 
@@ -64,6 +68,27 @@ def generate_random_date():
     month = random.randint(1, 12)
     day = random.randint(1, 28)
     return f"{month:02d}/{day:02d}/{year}"
+
+
+def save_to_csv(email, password, name, birth_date):
+    """将账户信息保存到 CSV 文件"""
+    file_exists = os.path.exists(CSV_FILE)
+    
+    try:
+        with open(CSV_FILE, 'a', newline='', encoding='utf-8') as f:
+            writer = csv.writer(f)
+            
+            # 如果文件不存在，写入表头
+            if not file_exists:
+                writer.writerow(['Email', 'Password', 'Name', 'Birth Date', 'Created At'])
+            
+            # 写入账户信息
+            writer.writerow([email, password, name, birth_date, datetime.now().isoformat()])
+        
+        return True
+    except Exception as e:
+        print(f"  ❌ CSV 保存失败: {e}")
+        return False
 
 
 async def save_screenshot(tab, prefix=""):
