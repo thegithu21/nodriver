@@ -98,8 +98,16 @@ async def fill_input_field(tab, selector, value, logger, field_name):
         }}
         """)
         if result == 'success':
-            logger.log(f"  ✓ {field_name} 已填充 (方法1)")
-            return True
+            # 验证真实值已写入
+            try:
+                read = await tab.evaluate(f"() => {{ const el = document.querySelector('{selector}'); return el ? el.value || el.textContent || el.innerText : null; }}")
+                if read and str(read).strip().find(str(value).strip()) != -1:
+                    logger.log(f"  ✓ {field_name} 已填充且验证通过 (方法1)")
+                    return True
+                else:
+                    logger.log(f"  ✗ {field_name} 验证失败，实际值: {read}", "WARN")
+            except Exception as e:
+                logger.log(f"  ✗ 验证过程失败: {e}", "WARN")
     except Exception as e:
         logger.log(f"  ✗ 方法1失败: {e}", "WARN")
     
@@ -112,8 +120,16 @@ async def fill_input_field(tab, selector, value, logger, field_name):
             for char in str(value):
                 await tab.send_keys(char)
                 await tab.sleep(0.05)
-            logger.log(f"  ✓ {field_name} 已填充 (方法2)")
-            return True
+            # 验证逐字输入后实际值
+            try:
+                read = await tab.evaluate(f"() => {{ const el = document.querySelector('{selector}'); return el ? el.value || el.textContent || el.innerText : null; }}")
+                if read and str(read).strip().find(str(value).strip()) != -1:
+                    logger.log(f"  ✓ {field_name} 已填充且验证通过 (方法2)")
+                    return True
+                else:
+                    logger.log(f"  ✗ {field_name} 验证失败 (方法2)，实际值: {read}", "WARN")
+            except Exception as e:
+                logger.log(f"  ✗ 方法2验证失败: {e}", "WARN")
     except Exception as e:
         logger.log(f"  ✗ 方法2失败: {e}", "WARN")
     
@@ -147,9 +163,15 @@ async def select_dropdown(tab, selector, value, logger, field_name):
             }}
             """)
             if option_result == 'selected':
-                logger.log(f"  ✓ {field_name} 已选择")
-                await tab.sleep(1)
-                return True
+                # 验证下拉选择后的状态
+                try:
+                    read = await tab.evaluate(f"() => {{ const el = document.querySelector('{selector}'); if (!el) return null; return el.textContent || el.value || el.innerText || el.getAttribute('aria-label'); }}")
+                    logger.log(f"  选择后读取到: {read}")
+                    await tab.sleep(1)
+                    logger.log(f"  ✓ {field_name} 已选择")
+                    return True
+                except Exception as e:
+                    logger.log(f"  ✗ 下拉选择后验证失败: {e}", "WARN")
     except Exception as e:
         logger.log(f"  ✗ 下拉框选择失败: {e}", "WARN")
     
@@ -309,6 +331,33 @@ async def register_outlook():
         
         await take_screenshot(tab, "08_birthdate_filled", logger)
         await save_html(tab, "08_birthdate_filled", logger)
+
+        # 检测生日字段错误提示（例如: "Enter your birthdate."）
+        try:
+            error_found = await tab.evaluate("""
+            () => {
+                const texts = Array.from(document.querySelectorAll('[role="alert"], .error, .message, .ms-Text'))
+                    .map(e => e.textContent || '').join('\n');
+                if (texts && /enter your birthdate/i.test(texts)) return true;
+                // 也尝试查找直显的提示文字
+                const nodes = Array.from(document.querySelectorAll('div, span, p'))
+                    .map(n => n.textContent || '');
+                for (let t of nodes) {
+                    if (/enter your birthdate/i.test(t)) return true;
+                }
+                return false;
+            }
+            """)
+            if error_found:
+                logger.log("检测到生日输入错误提示，停止并保存调查材料", "ERROR")
+                await take_screenshot(tab, "08_birthdate_error", logger)
+                await save_html(tab, "08_birthdate_error", logger)
+                raise Exception("Birthdate validation error shown on page")
+        except Exception as e:
+            # 如果是我们主动抛出的异常，继续向上抛
+            if str(e).startswith('Birthdate validation error'):
+                raise
+            logger.log(f"检测生日错误时出现异常: {e}", "WARN")
         
         # 点击下一步
         logger.log("点击下一步按钮...")

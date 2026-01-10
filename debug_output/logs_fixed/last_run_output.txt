@@ -1,0 +1,120 @@
+[2026-01-10 15:19:09] INFO: ======================================================================
+[2026-01-10 15:19:09] INFO: Outlook 邮箱自动注册 - 修复版本
+[2026-01-10 15:19:09] INFO: ======================================================================
+[2026-01-10 15:19:09] INFO: 邮箱: 74yx93597f6c@outlook.com
+[2026-01-10 15:19:09] INFO: 密码: oQz#i***
+[2026-01-10 15:19:09] INFO: 姓名: Richard Garcia
+[2026-01-10 15:19:09] INFO: 生日: 12/17/1979
+
+🚀 启动浏览器...
+[2026-01-10 15:19:09] INFO: 启动浏览器...
+[2026-01-10 15:19:09] INFO: 
+--- 步骤 1: 访问 Outlook 注册页面 ---
+
+[1/6] 访问 Outlook 注册页面...
+[2026-01-10 15:19:10] INFO: 等待 6 秒...
+[2026-01-10 15:19:11] INFO:   等待中... (0/6)
+[2026-01-10 15:19:14] INFO:   等待中... (3/6)
+[2026-01-10 15:19:17] INFO: 截图已保存: 01_page_loaded_20260110_151916.png
+[2026-01-10 15:19:17] INFO: HTML 已保存: 01_page_loaded_20260110_151917.html
+[2026-01-10 15:19:17] INFO: ✓ 页面已加载
+[2026-01-10 15:19:17] INFO: 
+--- 步骤 2: 填充邮箱 ---
+
+[2/6] 填充邮箱: 74yx93597f6c@outlook.com
+[2026-01-10 15:19:17] INFO: 尝试填充 邮箱: 74yx93597f6c@outlook.com
+[2026-01-10 15:19:17] WARN:   ✗ 方法2失败: "Tab" has no attribute "send_keys"
+[2026-01-10 15:19:17] ERROR:   ✗ 无法填充 邮箱
+[2026-01-10 15:19:17] INFO: 尝试填充 邮箱 (name): 74yx93597f6c@outlook.com
+[2026-01-10 15:19:28] ERROR:   ✗ 无法填充 邮箱 (name)
+[2026-01-10 15:19:29] INFO: 截图已保存: 02_email_filled_20260110_151928.png
+[2026-01-10 15:19:29] INFO: HTML 已保存: 02_email_filled_20260110_151929.html
+[2026-01-10 15:19:29] INFO: 点击下一步按钮...
+[2026-01-10 15:19:29] INFO: 等待 4 秒...
+[2026-01-10 15:19:30] INFO:   等待中... (0/4)
+[2026-01-10 15:19:33] INFO:   等待中... (3/4)
+[2026-01-10 15:19:34] INFO: 截图已保存: 03_after_email_click_20260110_151933.png
+[2026-01-10 15:19:34] INFO: HTML 已保存: 03_after_email_click_20260110_151934.html
+[2026-01-10 15:19:34] INFO: 
+--- 步骤 3: 填充密码 ---
+
+[3/6] 填充密码...
+[2026-01-10 15:19:34] INFO: 尝试填充 密码: oQz#isn$uqPp@47k
+[2026-01-10 15:19:45] ERROR:   ✗ 无法填充 密码
+[2026-01-10 15:19:45] INFO: 尝试填充 密码 (name): oQz#isn$uqPp@47k
+[2026-01-10 15:19:55] ERROR:   ✗ 无法填充 密码 (name)
+[2026-01-10 15:19:56] INFO: 截图已保存: 04_password_filled_20260110_151955.png
+[2026-01-10 15:19:56] INFO: HTML 已保存: 04_password_filled_20260110_151956.html
+[2026-01-10 15:19:56] INFO: 点击下一步按钮...
+[2026-01-10 15:19:56] INFO: 等待 4 秒...
+[2026-01-10 15:19:57] INFO:   等待中... (0/4)
+[2026-01-10 15:20:00] INFO:   等待中... (3/4)
+[2026-01-10 15:20:01] INFO: 截图已保存: 05_after_password_click_20260110_152000.png
+[2026-01-10 15:20:01] INFO: HTML 已保存: 05_after_password_click_20260110_152001.html
+[2026-01-10 15:20:01] INFO: 
+--- 步骤 4: 填充姓名 ---
+
+[4/6] 填充姓名: Richard Garcia
+[2026-01-10 15:20:01] INFO: 尝试填充 名字: Richard
+[2026-01-10 15:20:12] ERROR:   ✗ 无法填充 名字
+[2026-01-10 15:20:12] INFO: 尝试填充 姓氏: Garcia
+[2026-01-10 15:20:22] ERROR:   ✗ 无法填充 姓氏
+[2026-01-10 15:20:24] INFO: 截图已保存: 06_name_filled_20260110_152022.png
+[2026-01-10 15:20:24] INFO: HTML 已保存: 06_name_filled_20260110_152024.html
+[2026-01-10 15:20:24] INFO: 点击下一步按钮...
+[2026-01-10 15:20:24] INFO: 等待 4 秒...
+[2026-01-10 15:20:25] INFO:   等待中... (0/4)
+[2026-01-10 15:20:28] INFO:   等待中... (3/4)
+[2026-01-10 15:20:29] INFO: 截图已保存: 07_after_name_click_20260110_152028.png
+[2026-01-10 15:20:29] INFO: HTML 已保存: 07_after_name_click_20260110_152029.html
+[2026-01-10 15:20:29] INFO: 
+--- 步骤 5: 填充生日 ---
+
+[5/6] 填充生日: 12/17/1979
+[2026-01-10 15:20:29] INFO: 月份: December, 日: 17, 年: 1979
+[2026-01-10 15:20:29] INFO: 填充月份...
+[2026-01-10 15:20:29] INFO: 尝试选择 月份: December
+[2026-01-10 15:20:39] INFO: 填充日期...
+[2026-01-10 15:20:39] INFO: 尝试填充 日期: 17
+[2026-01-10 15:20:50] ERROR:   ✗ 无法填充 日期
+[2026-01-10 15:20:50] INFO: 填充年份...
+[2026-01-10 15:20:50] INFO: 尝试填充 年份: 1979
+[2026-01-10 15:21:00] ERROR:   ✗ 无法填充 年份
+[2026-01-10 15:21:01] INFO: 截图已保存: 08_birthdate_filled_20260110_152100.png
+[2026-01-10 15:21:01] INFO: HTML 已保存: 08_birthdate_filled_20260110_152101.html
+[2026-01-10 15:21:01] ERROR: 检测到生日输入错误提示，停止并保存调查材料
+[2026-01-10 15:21:02] INFO: 截图已保存: 08_birthdate_error_20260110_152101.png
+[2026-01-10 15:21:02] INFO: HTML 已保存: 08_birthdate_error_20260110_152102.html
+[2026-01-10 15:21:02] ERROR: ❌ 注册失败: Birthdate validation error shown on page
+[2026-01-10 15:21:02] ERROR: Traceback (most recent call last):
+  File "/workspaces/nodriver/example/register_outlook_fixed.py", line 355, in register_outlook
+    raise Exception("Birthdate validation error shown on page")
+Exception: Birthdate validation error shown on page
+
+
+📋 日志已保存: /workspaces/nodriver/debug_output/logs_fixed/registration_20260110_151909.log
+Traceback (most recent call last):
+  File "/workspaces/nodriver/example/register_outlook_fixed.py", line 396, in <module>
+    asyncio.run(register_outlook())
+  File "/home/codespace/.python/current/lib/python3.12/asyncio/runners.py", line 194, in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+  File "/home/codespace/.python/current/lib/python3.12/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/codespace/.python/current/lib/python3.12/asyncio/base_events.py", line 684, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "/workspaces/nodriver/example/register_outlook_fixed.py", line 392, in register_outlook
+    await driver.stop()
+TypeError: object NoneType can't be used in 'await' expression
+successfully removed temp profile /tmp/uc_8zwg6q02
+Exception ignored in: <function BaseSubprocessTransport.__del__ at 0x7d4f7af040e0>
+Traceback (most recent call last):
+  File "/home/codespace/.python/current/lib/python3.12/asyncio/base_subprocess.py", line 126, in __del__
+  File "/home/codespace/.python/current/lib/python3.12/asyncio/base_subprocess.py", line 104, in close
+  File "/home/codespace/.python/current/lib/python3.12/asyncio/unix_events.py", line 568, in close
+  File "/home/codespace/.python/current/lib/python3.12/asyncio/unix_events.py", line 592, in _close
+  File "/home/codespace/.python/current/lib/python3.12/asyncio/base_events.py", line 792, in call_soon
+  File "/home/codespace/.python/current/lib/python3.12/asyncio/base_events.py", line 539, in _check_closed
+RuntimeError: Event loop is closed
