@@ -1,0 +1,118 @@
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                    🎯 nodriver 调试系统 - 快速参考                             ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+📍 主目录
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+/workspaces/nodriver/debug_output/
+
+📁 子目录说明
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📋 logs/              执行日志文件（带时间戳）
+🖼️  screenshots/      页面截图文件
+📄 html/             HTML源代码文件
+📚 README.md         目录说明文档
+
+🔧 常用命令速查
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📊 查看调试信息
+  bash /workspaces/nodriver/debug_output/show_debug_info.sh
+
+📋 查看日志
+  tail -f /workspaces/nodriver/debug_output/logs/register_*.log
+  ls -lht /workspaces/nodriver/debug_output/logs/
+
+🖼️  查看截图
+  ls -lht /workspaces/nodriver/debug_output/screenshots/
+  code /workspaces/nodriver/debug_output/screenshots/
+
+📄 查看HTML
+  ls -lht /workspaces/nodriver/debug_output/html/
+  code /workspaces/nodriver/debug_output/html/
+
+🧹 清理文件
+  find /workspaces/nodriver/debug_output -type f -mtime +7 -delete
+
+📊 查看统计
+  du -sh /workspaces/nodriver/debug_output/
+  find /workspaces/nodriver/debug_output -type f | wc -l
+
+🔍 搜索日志
+  grep "错误\|Error" /workspaces/nodriver/debug_output/logs/*.log
+  grep "✓" /workspaces/nodriver/debug_output/logs/*.log
+
+📚 文档和指南
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📖 详细使用指南
+  cat /workspaces/nodriver/DEBUG_USAGE.md
+
+✨ 配置完成说明
+  cat /workspaces/nodriver/DEBUG_SETUP_COMPLETE.md
+
+📋 系统总结
+  cat /workspaces/nodriver/DEBUG_SUMMARY.md
+
+🎯 时间戳格式说明
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+YYYYMMDD_HHMMSS
+
+  YYYY = 年份 (2026)
+  MM   = 月份 (01-12)
+  DD   = 日期 (01-31)
+  HH   = 小时 (00-23)
+  MM   = 分钟 (00-59)
+  SS   = 秒钟 (00-59)
+
+示例：register_20260110_104656.log
+      └─ 2026年1月10日 10:46:56 生成的日志
+
+💾 文件大小预估
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+日志文件     ~5-10 KB/次运行
+截图文件    ~20-30 KB/个
+HTML文件     ~20-30 KB/个
+
+建议：每月清理一次，保留最近7-30天的文件
+
+🎯 问题排查流程
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1️⃣  查看日志找错误
+    grep "错误\|Error\|✗" /workspaces/nodriver/debug_output/logs/*.log
+
+2️⃣  对应时间的截图
+    # 根据错误的时间戳，找对应的截图
+    ls -lht /workspaces/nodriver/debug_output/screenshots/ | grep 20260110_104[67]
+
+3️⃣  分析HTML结构
+    # 查看对应时间的HTML文件，分析元素结构
+    cat /workspaces/nodriver/debug_output/html/*_20260110_104706.html
+
+4️⃣  采取行动
+    # 根据分析结果修改脚本
+
+✨ 特色功能
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✅ 自动时间戳命名    - 每个文件都带上生成时间
+✅ 双重输出         - 同时输出到控制台和文件
+✅ 分门别类存储      - 日志、截图、HTML分开存放
+✅ 永久保存         - 不会被自动清理（除非手动）
+✅ 快速查看工具      - 一条命令查看所有调试信息
+
+📞 需要帮助？
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. 查看 DEBUG_USAGE.md
+2. 运行 show_debug_info.sh
+3. 检查对应的日志和截图
+4. 分析页面HTML源代码
+
+═══════════════════════════════════════════════════════════════════════════════
+
+最后更新：2026-01-10 10:51:00
+状态：✅ 完全就绪

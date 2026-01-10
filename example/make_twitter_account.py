@@ -147,21 +147,39 @@ async def main():
     print('finding "next" button')
     next_btn = await tab.find(text="next", best_match=True)
     print('clicking "next" button')
-    await next_btn.mouse_click()
+    try:
+        # 尝试使用click()而不是mouse_click()
+        await next_btn.click()
+    except Exception as e:
+        print(f"click() 失败: {e}")
+        # 如果点击失败，尝试mouse_click
+        try:
+            await next_btn.mouse_click()
+        except Exception as e2:
+            print(f"mouse_click() 失败: {e2}")
+            # 最后尝试直接执行JavaScript点击
+            await tab.evaluate("document.querySelector('button[aria-label=\"Next\"]').click()")
+    
+    await tab.sleep(3)
 
     # just wait for some button, before we continue
-    await tab.select("[role=button]")
+    try:
+        await tab.select("[role=button]")
+    except:
+        pass
 
     print('finding "sign up"  button')
-    sign_up_btn = await tab.find("Sign up", best_match=True)
-    # we need the second one
-    print('clicking "sign up"  button')
-    await sign_up_btn.click()
+    try:
+        sign_up_btn = await tab.find("Sign up", best_match=True)
+        # we need the second one
+        print('clicking "sign up"  button')
+        await sign_up_btn.click()
+    except Exception as e:
+        print(f"找不到Sign up按钮: {e}")
 
     print('the rest of the "implementation" is out of scope')
     # further implementation outside of scope
     await tab.sleep(10)
-    driver.stop()
 
     # verification code per mail
 
