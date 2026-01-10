@@ -117,21 +117,56 @@ async def register_outlook_account():
     
     # 启动浏览器
     log("📱 启动浏览器...")
+    
+    # 确定浏览器可执行文件路径
+    browser_paths = [
+        "/usr/bin/chromium-browser",
+        "/usr/bin/chromium",
+        "/usr/bin/google-chrome",
+        "/usr/bin/google-chrome-stable",
+    ]
+    
+    browser_path = None
+    for path in browser_paths:
+        import subprocess
+        try:
+            result = subprocess.run(['which', path], capture_output=True)
+            if result.returncode == 0:
+                browser_path = path
+                log(f"  ✓ 找到浏览器: {path}")
+                break
+        except:
+            pass
+    
+    if not browser_path:
+        for path in browser_paths:
+            import os
+            if os.path.exists(path):
+                browser_path = path
+                log(f"  ✓ 找到浏览器: {path}")
+                break
+    
     try:
         driver = await uc.start(
             headless=False,  # 改为 False 以便查看过程
             no_sandbox=True,
-            browser_executable_path="/usr/bin/google-chrome",
+            browser_executable_path=browser_path if browser_path else None,
             browser_args=['--disable-dev-shm-usage', '--disable-gpu', '--no-first-run']
         )
+        log(f"  ✓ 浏览器启动成功")
     except Exception as e:
         log(f"❌ 浏览器启动失败: {e}")
-        log("尝试使用默认浏览器...")
-        driver = await uc.start(
-            headless=False,
-            no_sandbox=True,
-            browser_args=['--disable-dev-shm-usage', '--disable-gpu']
-        )
+        log(f"  尝试使用默认浏览器...")
+        try:
+            driver = await uc.start(
+                headless=False,
+                no_sandbox=True,
+                browser_args=['--disable-dev-shm-usage', '--disable-gpu']
+            )
+            log(f"  ✓ 使用默认浏览器启动成功")
+        except Exception as e2:
+            log(f"❌ 默认浏览器启动也失败: {e2}")
+            raise
     
     try:
         # 生成账户信息
@@ -149,10 +184,19 @@ async def register_outlook_account():
         
         # 访问 Outlook 注册页面
         log("🌐 访问 Outlook.com...")
-        tab = await driver.get("https://outlook.com/")
-        await tab.sleep(3)
-        
-        await save_screenshot(tab, "homepage")
+        try:
+            tab = await driver.get("https://outlook.com/")
+            log("  ⏳ 等待页面加载...")
+            await tab.sleep(5)
+            
+            # 获取当前 URL 以验证页面加载
+            current_url = tab.url
+            log(f"  ✓ 当前URL: {current_url}")
+            
+            await save_screenshot(tab, "homepage")
+        except Exception as e:
+            log(f"  ❌ 访问 Outlook 失败: {e}")
+            raise
         
         # 查找"创建免费账户"按钮
         log("🔍 查找注册按钮...")
@@ -181,121 +225,347 @@ async def register_outlook_account():
         # 第一步: 输入电子邮件
         log("\n📧 第一步: 输入电子邮件地址")
         try:
+            # 首先查找"创建帐户"链接
+            log("  🔍 查找注册入口...")
+            await tab.sleep(2)
+            
+            # 尝试查找创建账户的链接或按钮
+            signup_selectors = [
+                "a[href*='signup']",
+                "button:has-text('Create account')",
+                "button:has-text('Create free account')",
+                "a[role='button']:has-text('Create')",
+                "div[role='button']:has-text('Create')",
+            ]
+            
+            signup_element = None
+            for selector in signup_selectors:
+                try:
+                    elements = await tab.select_all(selector)
+                    if elements:
+                        signup_element = elements[0]
+                        log(f"  ✓ 找到注册链接: {selector}")
+                        break
+                except:
+                    pass
+            
+            if signup_element:
+                log("  点击注册链接...")
+                await signup_element.click()
+                await tab.sleep(4)
+                await save_screenshot(tab, "signup_page")
+            else:
+                log("  ⚠️  未找到注册链接，尝试直接查找邮箱输入框...")
+                await tab.sleep(1)
+            
             # 查找邮箱输入框
-            email_input = await wait_and_find(
-                tab,
-                ["input[type='email']", "input[name='email']", "input[placeholder*='email']", "input[placeholder*='Email']"],
-                timeout=10,
-                description="email input"
-            )
+            log("  🔍 查找邮箱输入框...")
+            email_input = None
+            email_selectors = [
+                "input[type='email']",
+                "input[name='email']",
+                "input[placeholder*='email']",
+                "input[placeholder*='Email']",
+                "input[id*='email']",
+            ]
+            
+            for selector in email_selectors:
+                try:
+                    elements = await tab.select_all(selector)
+                    if elements:
+                        email_input = elements[0]
+                        log(f"  ✓ 找到邮箱输入框: {selector}")
+                        break
+                except:
+                    pass
+            
+            if not email_input:
+                # 使用 find 方法查找邮箱标签附近的输入框
+                try:
+                    log("  尝试使用 find 方法查找邮箱输入框...")
+                    email_input = await tab.find("Email")
+                    log(f"  ✓ 使用 find 方法找到邮箱输入框")
+                except:
+                    log("  ❌ 仍无法找到邮箱输入框")
+                    raise TimeoutError("Cannot find email input")
             
             log(f"  输入邮箱: {email}")
             await email_input.send_keys(email)
             await tab.sleep(1)
             
             # 点击下一步按钮
-            next_btn = await wait_and_find(
-                tab,
-                ["button:has-text('Next')", "button:has-text('下一步')", "button[type='submit']"],
-                timeout=5,
-                description="next button"
-            )
-            log("  点击下一步...")
-            await next_btn.click()
-            await tab.sleep(3)
-            await save_screenshot(tab, "email_entered")
+            log("  🔍 查找下一步按钮...")
+            next_btn = None
+            next_selectors = [
+                "button:has-text('Next')",
+                "button:has-text('下一步')",
+                "button[type='submit']",
+                "button:visible",
+            ]
+            
+            for selector in next_selectors:
+                try:
+                    elements = await tab.select_all(selector)
+                    if elements:
+                        next_btn = elements[0]
+                        log(f"  ✓ 找到下一步按钮: {selector}")
+                        break
+                except:
+                    pass
+            
+            if next_btn:
+                log("  点击下一步...")
+                await next_btn.click()
+                await tab.sleep(3)
+                await save_screenshot(tab, "email_entered")
+            else:
+                log("  ⚠️  未找到下一步按钮，尝试按 Enter...")
+                await email_input.send_keys(['Return'])
+                await tab.sleep(3)
+                await save_screenshot(tab, "email_entered")
             
         except Exception as e:
             log(f"  ❌ 邮箱输入失败: {e}")
             await save_screenshot(tab, "email_error")
+            # 收集调试信息
+            log("\n  📊 调试信息收集:")
+            try:
+                page_html = await tab.get_content()
+                html_file = os.path.join(DEBUG_DIR, f"page_html_{datetime.now().strftime('%Y%m%d_%H%M%S')}.html")
+                with open(html_file, 'w', encoding='utf-8') as f:
+                    f.write(page_html)
+                log(f"    HTML 已保存: {html_file}")
+            except Exception as e2:
+                log(f"    HTML 保存失败: {e2}")
+            
             return None
         
         # 第二步: 输入密码
         log("\n🔐 第二步: 输入密码")
         try:
-            password_input = await wait_and_find(
-                tab,
-                ["input[type='password']", "input[name='password']"],
-                timeout=10,
-                description="password input"
-            )
+            log("  🔍 查找密码输入框...")
+            password_input = None
+            password_selectors = [
+                "input[type='password']",
+                "input[name='password']",
+                "input[id*='password']",
+            ]
+            
+            for selector in password_selectors:
+                try:
+                    elements = await tab.select_all(selector)
+                    if elements:
+                        password_input = elements[0]
+                        log(f"  ✓ 找到密码输入框: {selector}")
+                        break
+                except:
+                    pass
+            
+            if not password_input:
+                try:
+                    log("  尝试使用 find 方法查找密码输入框...")
+                    password_input = await tab.find("Password")
+                    log(f"  ✓ 使用 find 方法找到密码输入框")
+                except:
+                    log("  ❌ 无法找到密码输入框")
+                    raise TimeoutError("Cannot find password input")
             
             log(f"  输入密码...")
             await password_input.send_keys(password)
             await tab.sleep(1)
             
-            next_btn = await wait_and_find(
-                tab,
-                ["button:has-text('Next')", "button:has-text('下一步')", "button[type='submit']"],
-                timeout=5,
-                description="next button"
-            )
-            log("  点击下一步...")
-            await next_btn.click()
-            await tab.sleep(3)
-            await save_screenshot(tab, "password_entered")
+            # 点击下一步按钮
+            log("  🔍 查找下一步按钮...")
+            next_btn = None
+            next_selectors = [
+                "button:has-text('Next')",
+                "button:has-text('下一步')",
+                "button[type='submit']",
+            ]
+            
+            for selector in next_selectors:
+                try:
+                    elements = await tab.select_all(selector)
+                    if elements:
+                        next_btn = elements[-1]  # 获取最后一个 Next 按钮
+                        log(f"  ✓ 找到下一步按钮: {selector}")
+                        break
+                except:
+                    pass
+            
+            if next_btn:
+                log("  点击下一步...")
+                await next_btn.click()
+                await tab.sleep(3)
+                await save_screenshot(tab, "password_entered")
+            else:
+                log("  ⚠️  未找到下一步按钮，尝试按 Enter...")
+                await password_input.send_keys(['Return'])
+                await tab.sleep(3)
+                await save_screenshot(tab, "password_entered")
             
         except Exception as e:
             log(f"  ❌ 密码输入失败: {e}")
             await save_screenshot(tab, "password_error")
+            
+            # 收集调试信息
+            log("\n  📊 调试信息收集:")
+            try:
+                page_html = await tab.get_content()
+                html_file = os.path.join(DEBUG_DIR, f"page_html_password_{datetime.now().strftime('%Y%m%d_%H%M%S')}.html")
+                with open(html_file, 'w', encoding='utf-8') as f:
+                    f.write(page_html)
+                log(f"    HTML 已保存: {html_file}")
+            except Exception as e2:
+                log(f"    HTML 保存失败: {e2}")
+            
             return None
         
         # 第三步: 输入名字
         log("\n👤 第三步: 输入用户名称")
         try:
-            name_input = await wait_and_find(
-                tab,
-                ["input[type='text']", "input[name='firstName']", "input[placeholder*='name']"],
-                timeout=10,
-                description="name input"
-            )
+            log("  🔍 查找名字输入框...")
+            name_input = None
+            name_selectors = [
+                "input[type='text']",
+                "input[name='firstName']",
+                "input[placeholder*='name']",
+                "input[placeholder*='Name']",
+                "input[id*='name']",
+            ]
+            
+            for selector in name_selectors:
+                try:
+                    elements = await tab.select_all(selector)
+                    if elements:
+                        name_input = elements[0]
+                        log(f"  ✓ 找到名字输入框: {selector}")
+                        break
+                except:
+                    pass
+            
+            if not name_input:
+                try:
+                    log("  尝试使用 find 方法查找名字输入框...")
+                    name_input = await tab.find("Name")
+                    log(f"  ✓ 使用 find 方法找到名字输入框")
+                except:
+                    log("  ❌ 无法找到名字输入框")
+                    raise TimeoutError("Cannot find name input")
             
             log(f"  输入名字: {name}")
             # 清除任何已有文本
             await name_input.send_keys(["Control", "a"])
+            await tab.sleep(0.2)
             await name_input.send_keys(name)
             await tab.sleep(1)
             
-            next_btn = await wait_and_find(
-                tab,
-                ["button:has-text('Next')", "button:has-text('下一步')", "button[type='submit']"],
-                timeout=5,
-                description="next button"
-            )
-            log("  点击下一步...")
-            await next_btn.click()
-            await tab.sleep(3)
-            await save_screenshot(tab, "name_entered")
+            # 点击下一步按钮
+            log("  🔍 查找下一步按钮...")
+            next_btn = None
+            next_selectors = [
+                "button:has-text('Next')",
+                "button:has-text('下一步')",
+                "button[type='submit']",
+            ]
+            
+            for selector in next_selectors:
+                try:
+                    elements = await tab.select_all(selector)
+                    if elements:
+                        next_btn = elements[-1]
+                        log(f"  ✓ 找到下一步按钮: {selector}")
+                        break
+                except:
+                    pass
+            
+            if next_btn:
+                log("  点击下一步...")
+                await next_btn.click()
+                await tab.sleep(3)
+                await save_screenshot(tab, "name_entered")
+            else:
+                log("  ⚠️  未找到下一步按钮，尝试按 Enter...")
+                await name_input.send_keys(['Return'])
+                await tab.sleep(3)
+                await save_screenshot(tab, "name_entered")
             
         except Exception as e:
             log(f"  ❌ 名字输入失败: {e}")
             await save_screenshot(tab, "name_error")
+            
+            # 收集调试信息
+            log("\n  📊 调试信息收集:")
+            try:
+                page_html = await tab.get_content()
+                html_file = os.path.join(DEBUG_DIR, f"page_html_name_{datetime.now().strftime('%Y%m%d_%H%M%S')}.html")
+                with open(html_file, 'w', encoding='utf-8') as f:
+                    f.write(page_html)
+                log(f"    HTML 已保存: {html_file}")
+            except Exception as e2:
+                log(f"    HTML 保存失败: {e2}")
+            
             return None
         
         # 第四步: 输入出生日期
         log("\n📅 第四步: 输入出生日期")
         try:
-            birth_input = await wait_and_find(
-                tab,
-                ["input[placeholder*='Birth date']", "input[placeholder*='birth']", "input[type='date']"],
-                timeout=10,
-                description="birth date input"
-            )
+            log("  🔍 查找出生日期输入框...")
+            birth_input = None
+            birth_selectors = [
+                "input[placeholder*='Birth date']",
+                "input[placeholder*='birth']",
+                "input[type='date']",
+                "input[id*='birth']",
+            ]
             
-            log(f"  输入出生日期: {birth_date}")
-            await birth_input.send_keys(birth_date)
-            await tab.sleep(1)
+            for selector in birth_selectors:
+                try:
+                    elements = await tab.select_all(selector)
+                    if elements:
+                        birth_input = elements[0]
+                        log(f"  ✓ 找到出生日期输入框: {selector}")
+                        break
+                except:
+                    pass
             
-            next_btn = await wait_and_find(
-                tab,
-                ["button:has-text('Next')", "button:has-text('下一步')", "button[type='submit']"],
-                timeout=5,
-                description="next button"
-            )
-            log("  点击下一步...")
-            await next_btn.click()
-            await tab.sleep(3)
-            await save_screenshot(tab, "birth_entered")
+            if birth_input:
+                log(f"  输入出生日期: {birth_date}")
+                await birth_input.send_keys(birth_date)
+                await tab.sleep(1)
+                
+                # 点击下一步按钮
+                log("  🔍 查找下一步按钮...")
+                next_btn = None
+                next_selectors = [
+                    "button:has-text('Next')",
+                    "button:has-text('下一步')",
+                    "button[type='submit']",
+                ]
+                
+                for selector in next_selectors:
+                    try:
+                        elements = await tab.select_all(selector)
+                        if elements:
+                            next_btn = elements[-1]
+                            log(f"  ✓ 找到下一步按钮: {selector}")
+                            break
+                    except:
+                        pass
+                
+                if next_btn:
+                    log("  点击下一步...")
+                    await next_btn.click()
+                    await tab.sleep(3)
+                    await save_screenshot(tab, "birth_entered")
+                else:
+                    log("  ⚠️  未找到下一步按钮，尝试按 Enter...")
+                    await birth_input.send_keys(['Return'])
+                    await tab.sleep(3)
+                    await save_screenshot(tab, "birth_entered")
+            else:
+                log("  ⚠️  未找到出生日期输入框（可能可跳过）")
+                await save_screenshot(tab, "birth_not_found")
             
         except Exception as e:
             log(f"  ⚠️  出生日期输入失败（可能可跳过）: {e}")
@@ -303,11 +573,32 @@ async def register_outlook_account():
         
         # 等待验证或确认页面
         log("\n⏳ 等待验证流程...")
-        await tab.sleep(5)
-        await save_screenshot(tab, "verification_page")
+        for i in range(10):
+            await tab.sleep(1)
+            await save_screenshot(tab, f"verification_page_{i}")
+            
+            # 检查是否有错误信息
+            try:
+                page_html = await tab.get_content()
+                if "error" in page_html.lower() or "invalid" in page_html.lower():
+                    log(f"  ⚠️  可能出现错误信息，检查截图...")
+            except:
+                pass
         
-        log("\n✅ 账户创建流程已完成!")
-        log("  注意: 可能需要进一步的验证步骤（如邮箱验证或电话验证）")
+        # 检查最终 URL 和页面状态
+        try:
+            final_url = tab.url
+            log(f"\n  ✓ 最终URL: {final_url}")
+            
+            page_html = await tab.get_content()
+            
+            if "outlook" in final_url.lower() or "mail" in final_url.lower():
+                log("\n✅ 账户创建流程已完成!")
+                log("  账户已成功创建或需要进一步验证")
+            else:
+                log("\n⚠️  页面 URL 变化，注意可能需要进一步操作")
+        except Exception as e:
+            log(f"\n  URL 检查失败: {e}")
         
         # 保存账户信息
         account_info = {
