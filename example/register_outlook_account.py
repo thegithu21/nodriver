@@ -11,7 +11,6 @@ import time
 import random
 import string
 import json
-import subprocess
 from datetime import datetime
 from pathlib import Path
 
@@ -119,74 +118,50 @@ async def register_outlook_account():
     # 启动浏览器
     log("📱 启动浏览器...")
     
-    # 确定浏览器可执行文件路径
-    browser_paths = [
-        "/usr/bin/chromium-browser",
-        "/usr/bin/chromium",
-        "/usr/bin/google-chrome",
+    # 检查浏览器可执行文件是否存在
+    chrome_paths = [
         "/usr/bin/google-chrome-stable",
+        "/usr/bin/google-chrome",
+        "/usr/bin/chromium",
+        "/usr/bin/chromium-browser",
     ]
     
-    browser_path = None
-    for path in browser_paths:
-        try:
-            result = subprocess.run(['which', path], capture_output=True)
-            if result.returncode == 0:
-                browser_path = path
-                log(f"  ✓ 找到浏览器: {path}")
-                break
-        except:
-            pass
+    chrome_path = None
+    for path in chrome_paths:
+        if os.path.exists(path):
+            chrome_path = path
+            log(f"  ✓ 找到浏览器: {path}")
+            break
     
-    if not browser_path:
-        for path in browser_paths:
-            if os.path.exists(path):
-                browser_path = path
-                log(f"  ✓ 找到浏览器: {path}")
-                break
+    if not chrome_path:
+        log(f"  ⚠️  未找到浏览器路径，使用 nodriver 自动查找...")
+    else:
+        log(f"  使用浏览器路径: {chrome_path}")
     
     try:
+        log(f"  🔧 启动参数:")
+        log(f"     headless=False")
+        log(f"     no_sandbox=True")
+        log(f"     browser_executable_path={chrome_path}")
+        
         driver = await uc.start(
-            headless=False,  # 改为 False 以便查看过程
+            headless=True,  # 使用 headless 模式来避免连接问题
             no_sandbox=True,
-            browser_executable_path=browser_path if browser_path else None,
+            browser_executable_path=chrome_path,
             browser_args=[
                 '--disable-dev-shm-usage',
                 '--disable-gpu',
                 '--no-first-run',
-                '--disable-software-rasterizer',
                 '--disable-extensions',
-                '--disable-component-extensions-with-background-pages',
-                '--disable-breakpad',
-                '--disable-default-apps',
-                '--disable-extensions-file-access-check',
-                '--disable-extensions-http-throttling',
-                '--disable-sync',
-                '--disable-translate',
-                '--metrics-recording-only',
-                '--mute-audio',
-                '--single-process',
-                '--disable-web-resources',
+                '--use-gl=swiftshader',
+                '--disable-gpu-sandbox',
             ]
         )
         log(f"  ✓ 浏览器启动成功")
     except Exception as e:
         log(f"❌ 浏览器启动失败: {e}")
-        log(f"  尝试使用默认浏览器...")
-        try:
-            driver = await uc.start(
-                headless=False,
-                no_sandbox=True,
-                browser_args=[
-                    '--disable-dev-shm-usage',
-                    '--disable-gpu',
-                    '--single-process',
-                ]
-            )
-            log(f"  ✓ 使用默认浏览器启动成功")
-        except Exception as e2:
-            log(f"❌ 默认浏览器启动也失败: {e2}")
-            raise
+        log(f"  错误信息: {str(e)}")
+        raise
     
     try:
         # 生成账户信息
